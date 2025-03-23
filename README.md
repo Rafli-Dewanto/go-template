@@ -51,4 +51,12 @@ CREATE DATABASE go_template;
 go run cmd/main.go
 ```
 
+TODO:
+
+- Add a Makefile for common tasks
+- Add a Dockerfile for containerization
+- Add a README.md for project documentation
+- Unit tests
+- CI/CD pipeline
+
 The server will start on `localhost:8080`
