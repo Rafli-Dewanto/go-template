@@ -16,7 +16,10 @@ type Router struct {
 
 func NewRouter(db *sqlx.DB) *Router {
 	// logger
-	logger := utils.NewLogger()
+	logger, err := utils.NewLogger("files/log/app.log")
+	if err != nil {
+		panic(err)
+	}
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db, logger)
