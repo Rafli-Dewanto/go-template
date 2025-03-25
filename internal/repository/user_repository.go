@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Rafli-Dewanto/go-template/internal/entity"
@@ -10,12 +11,12 @@ import (
 )
 
 type UserRepository interface {
-	GetByEmailOrUsername(email string, username string) (*entity.User, error)
-	Create(user *entity.User) error
-	GetByID(id int64) (*entity.User, error)
-	List(query *model.PaginationQuery) ([]*entity.User, int64, error)
-	Update(user *entity.User) error
-	SoftDelete(id int64) error
+	GetByEmailOrUsername(ctx context.Context, email string, username string) (*entity.User, error)
+	Create(ctx context.Context, user *entity.User) error
+	GetByID(ctx context.Context, id int64) (*entity.User, error)
+	List(ctx context.Context, query *model.PaginationQuery) ([]*entity.User, int64, error)
+	Update(ctx context.Context, user *entity.User) error
+	SoftDelete(ctx context.Context, id int64) error
 }
 
 type userRepository struct {
@@ -27,8 +28,8 @@ func NewUserRepository(db *sqlx.DB, logger *utils.Logger) UserRepository {
 	return &userRepository{db: db, logger: logger}
 }
 
-func (r *userRepository) GetByEmailOrUsername(email string, username string) (*entity.User, error) {
-	tx, err := r.db.Beginx()
+func (r *userRepository) GetByEmailOrUsername(ctx context.Context, email string, username string) (*entity.User, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		r.logger.Error("UserRepository.GetByEmailOrUsername: failed to start transaction: %v", err)
 		return nil, err
@@ -52,8 +53,8 @@ func (r *userRepository) GetByEmailOrUsername(email string, username string) (*e
 	return user, nil
 }
 
-func (r *userRepository) Create(user *entity.User) error {
-	tx, err := r.db.Beginx()
+func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		r.logger.Error("UserRepository.Create: failed to start transaction: %v", err)
 		return err
@@ -84,8 +85,8 @@ func (r *userRepository) Create(user *entity.User) error {
 	return nil
 }
 
-func (r *userRepository) GetByID(id int64) (*entity.User, error) {
-	tx, err := r.db.Beginx()
+func (r *userRepository) GetByID(ctx context.Context, id int64) (*entity.User, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		r.logger.Error("UserRepository.GetByID: failed to start transaction: %v", err)
 		return nil, err
@@ -109,8 +110,8 @@ func (r *userRepository) GetByID(id int64) (*entity.User, error) {
 	return user, nil
 }
 
-func (r *userRepository) List(query *model.PaginationQuery) ([]*entity.User, int64, error) {
-	tx, err := r.db.Beginx()
+func (r *userRepository) List(ctx context.Context, query *model.PaginationQuery) ([]*entity.User, int64, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		r.logger.Error("UserRepository.List: failed to start transaction: %v", err)
 		return nil, 0, err
@@ -148,8 +149,8 @@ func (r *userRepository) List(query *model.PaginationQuery) ([]*entity.User, int
 	return users, total, nil
 }
 
-func (r *userRepository) Update(user *entity.User) error {
-	tx, err := r.db.Beginx()
+func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		r.logger.Error("UserRepository.Update: failed to start transaction: %v", err)
 		return err
@@ -182,8 +183,8 @@ func (r *userRepository) Update(user *entity.User) error {
 	return nil
 }
 
-func (r *userRepository) SoftDelete(id int64) error {
-	tx, err := r.db.Beginx()
+func (r *userRepository) SoftDelete(ctx context.Context, id int64) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		r.logger.Error("UserRepository.SoftDelete: failed to start transaction: %v", err)
 		return err

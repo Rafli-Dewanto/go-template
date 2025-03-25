@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"math"
 	"time"
@@ -16,14 +17,15 @@ var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrInvalidInput      = errors.New("invalid input")
 	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrRequestTimeout    = errors.New("request timeout")
 )
 
 type UserService interface {
-	Create(user *model.CreateUserRequest) error
-	GetByID(id int64) (*model.UserResponse, error)
-	List(query *model.PaginationQuery) (*model.Response, error)
-	Update(user *model.UpdateUserRequest) error
-	SoftDelete(id int64) error
+	Create(ctx context.Context, user *model.CreateUserRequest) error
+	GetByID(ctx context.Context, id int64) (*model.UserResponse, error)
+	List(ctx context.Context, query *model.PaginationQuery) (*model.Response, error)
+	Update(ctx context.Context, user *model.UpdateUserRequest) error
+	SoftDelete(ctx context.Context, id int64) error
 }
 
 type userService struct {
@@ -35,16 +37,22 @@ func NewUserService(repo repository.UserRepository, logger *utils.Logger) UserSe
 	return &userService{repo: repo, logger: logger}
 }
 
-func (s *userService) Create(user *model.CreateUserRequest) error {
+func (s *userService) Create(ctx context.Context, user *model.CreateUserRequest) error {
 	if user.Username == "" || user.Email == "" {
 		s.logger.Warning("Invalid input for user creation: %v", ErrInvalidInput)
 		return ErrInvalidInput
 	}
 
-	existingUser, err := s.repo.GetByEmailOrUsername(user.Email, user.Username)
+	existingUser, err := s.repo.GetByEmailOrUsername(ctx, user.Email, user.Username)
 	if err == nil && existingUser != nil {
 		s.logger.Warning("User with email or username already exists")
 		return ErrUserAlreadyExists
+	}
+
+	// Check if the context is already expired
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		s.logger.Warning("Request timeout: %v", ErrRequestTimeout)
+		return ErrRequestTimeout
 	}
 
 	newUser := &entity.User{
@@ -55,16 +63,26 @@ func (s *userService) Create(user *model.CreateUserRequest) error {
 		UpdatedAt: time.Now(),
 	}
 
-	return s.repo.Create(newUser)
+	err = s.repo.Create(ctx, newUser)
+	if err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			s.logger.Warning("Request timeout: %v", ErrRequestTimeout)
+			return ErrRequestTimeout
+		}
+		return err
+	}
+
+	return nil
 }
 
-func (s *userService) GetByID(id int64) (*model.UserResponse, error) {
+
+func (s *userService) GetByID(ctx context.Context, id int64) (*model.UserResponse, error) {
 	if id <= 0 {
 		s.logger.Warning("Invalid input for user retrieval: %v", ErrInvalidInput)
 		return nil, ErrInvalidInput
 	}
 
-	user, err := s.repo.GetByID(id)
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Warning("User not found: %v", ErrUserNotFound)
 		return nil, ErrUserNotFound
@@ -72,12 +90,12 @@ func (s *userService) GetByID(id int64) (*model.UserResponse, error) {
 	return converter.ToUserResponse(user), nil
 }
 
-func (s *userService) List(query *model.PaginationQuery) (*model.Response, error) {
+func (s *userService) List(ctx context.Context, query *model.PaginationQuery) (*model.Response, error) {
 	if query.Limit <= 0 {
 		query.Limit = 10
 	}
 
-	users, total, err := s.repo.List(query)
+	users, total, err := s.repo.List(ctx, query)
 	if err != nil {
 		s.logger.Warning("Failed to list users: %v", err)
 		return nil, err
@@ -104,13 +122,13 @@ func (s *userService) List(query *model.PaginationQuery) (*model.Response, error
 	}, nil
 }
 
-func (s *userService) Update(user *model.UpdateUserRequest) error {
+func (s *userService) Update(ctx context.Context, user *model.UpdateUserRequest) error {
 	if user.ID <= 0 || user.Username == "" || user.Email == "" {
 		s.logger.Warning("Invalid input for user update: %v", ErrInvalidInput)
 		return ErrInvalidInput
 	}
 
-	_, err := s.GetByID(user.ID)
+	_, err := s.repo.GetByID(ctx, user.ID)
 	if err != nil {
 		s.logger.Warning("User not found: %v", ErrUserNotFound)
 		return err
@@ -122,24 +140,23 @@ func (s *userService) Update(user *model.UpdateUserRequest) error {
 		Email:    user.Email,
 	}
 
-	err = s.repo.Update(updatedUser)
+	err = s.repo.Update(ctx, updatedUser)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *userService) SoftDelete(id int64) error {
+func (s *userService) SoftDelete(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return ErrInvalidInput
 	}
 
-	// Check if user exists
-	_, err := s.GetByID(id)
+	_, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Warning("User not found: %v", ErrUserNotFound)
 		return err
 	}
 
-	return s.repo.SoftDelete(id)
+	return s.repo.SoftDelete(ctx, id)
 }
