@@ -2,15 +2,18 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Rafli-Dewanto/go-template/internal/entity"
 	"github.com/Rafli-Dewanto/go-template/internal/model"
 	"github.com/Rafli-Dewanto/go-template/internal/utils"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 type UserRepository interface {
+	GetByUsername(ctx context.Context, username string) (*entity.User, error)
 	GetByEmailOrUsername(ctx context.Context, email string, username string) (*entity.User, error)
 	Create(ctx context.Context, user *entity.User) error
 	GetByID(ctx context.Context, id int64) (*entity.User, error)
@@ -26,6 +29,31 @@ type userRepository struct {
 
 func NewUserRepository(db *sqlx.DB, logger *utils.Logger) UserRepository {
 	return &userRepository{db: db, logger: logger}
+}
+
+func (r *userRepository) GetByUsername(ctx context.Context, username string) (*entity.User, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		r.logger.Error("UserRepository.GetByUsername: failed to start transaction: %v", err)
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	query := `SELECT * FROM users WHERE usr_username = $1 LIMIT 1`
+	user := &entity.User{}
+
+	err = tx.Get(user, query, username)
+	if err != nil {
+		r.logger.Error("UserRepository.GetByUsername: %v", err)
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (r *userRepository) GetByEmailOrUsername(ctx context.Context, email string, username string) (*entity.User, error) {
@@ -156,9 +184,11 @@ func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
 		return err
 	}
 
+	// Ensure rollback on failure
 	defer func() {
-		if err != nil {
+		if p := recover(); p != nil {
 			tx.Rollback()
+			panic(p)
 		}
 	}()
 
@@ -171,6 +201,11 @@ func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
 
 	err = tx.QueryRowx(query, user.Username, user.Email, user.ID).Scan(&user.UpdatedAt)
 	if err != nil {
+		tx.Rollback() // Explicitly rollback on error
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" { // Unique violation
+			r.logger.Warning("UserRepository.Update: email already exists: %v", user.Email)
+			return errors.New("email already in use")
+		}
 		r.logger.Error("UserRepository.Update: %v", err)
 		return err
 	}
@@ -182,6 +217,7 @@ func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
 
 	return nil
 }
+
 
 func (r *userRepository) SoftDelete(ctx context.Context, id int64) error {
 	tx, err := r.db.BeginTxx(ctx, nil)

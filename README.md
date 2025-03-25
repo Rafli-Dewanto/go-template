@@ -53,9 +53,6 @@ go run cmd/main.go
 
 TODO:
 
-- Add a Makefile for common tasks
-- Add a Dockerfile for containerization
 - Unit tests
-- CI/CD pipeline
 
 The server will start on `localhost:8080`

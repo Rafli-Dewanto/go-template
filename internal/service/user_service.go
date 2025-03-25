@@ -14,17 +14,18 @@ import (
 )
 
 var (
-	ErrUserNotFound      = errors.New("user not found")
-	ErrInvalidInput      = errors.New("invalid input")
-	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrRequestTimeout    = errors.New("request timeout")
+	ErrUserNotFound         = errors.New("user not found")
+	ErrInvalidInput         = errors.New("invalid input")
+	ErrUserAlreadyExists    = errors.New("user already exists")
+	ErrRequestTimeout       = errors.New("request timeout")
+	ErrUsernameAlreadyTaken = errors.New("username already taken")
 )
 
 type UserService interface {
 	Create(ctx context.Context, user *model.CreateUserRequest) error
 	GetByID(ctx context.Context, id int64) (*model.UserResponse, error)
 	List(ctx context.Context, query *model.PaginationQuery) (*model.Response, error)
-	Update(ctx context.Context, user *model.UpdateUserRequest) error
+	Update(ctx context.Context, user model.UpdateUserRequest) error
 	SoftDelete(ctx context.Context, id int64) error
 }
 
@@ -75,7 +76,6 @@ func (s *userService) Create(ctx context.Context, user *model.CreateUserRequest)
 	return nil
 }
 
-
 func (s *userService) GetByID(ctx context.Context, id int64) (*model.UserResponse, error) {
 	if id <= 0 {
 		s.logger.Warning("Invalid input for user retrieval: %v", ErrInvalidInput)
@@ -122,13 +122,13 @@ func (s *userService) List(ctx context.Context, query *model.PaginationQuery) (*
 	}, nil
 }
 
-func (s *userService) Update(ctx context.Context, user *model.UpdateUserRequest) error {
-	if user.ID <= 0 || user.Username == "" || user.Email == "" {
+func (s *userService) Update(ctx context.Context, user model.UpdateUserRequest) error {
+	if user.ID <= 0 {
 		s.logger.Warning("Invalid input for user update: %v", ErrInvalidInput)
 		return ErrInvalidInput
 	}
 
-	_, err := s.repo.GetByID(ctx, user.ID)
+	existingUser, err := s.repo.GetByID(ctx, user.ID)
 	if err != nil {
 		s.logger.Warning("User not found: %v", ErrUserNotFound)
 		return err
@@ -136,8 +136,24 @@ func (s *userService) Update(ctx context.Context, user *model.UpdateUserRequest)
 
 	updatedUser := &entity.User{
 		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
+		Username: existingUser.Username,
+		Email:    existingUser.Email,
+	}
+
+	// Update username if provided
+	if user.Username != "" {
+		// Check if new username is already taken
+		_, err := s.repo.GetByUsername(ctx, user.Username)
+		if err == nil {
+			s.logger.Warning("Username is already taken: %v", ErrUsernameAlreadyTaken)
+			return ErrUsernameAlreadyTaken
+		}
+		updatedUser.Username = user.Username
+	}
+
+	// Update email if provided
+	if user.Email != "" {
+		updatedUser.Email = user.Email
 	}
 
 	err = s.repo.Update(ctx, updatedUser)

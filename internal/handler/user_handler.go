@@ -153,7 +153,7 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req *model.UpdateUserRequest
+	var req model.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("Failed to decode request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -170,9 +170,12 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		case service.ErrUserNotFound:
 			h.logger.Warning("User not found for update with ID: %d", req.ID)
 			writeErrorResponse(w, http.StatusNotFound, "User not found")
+		case service.ErrUsernameAlreadyTaken:
+			h.logger.Warning("Username is already taken for update with ID: %d", req.ID)
+			writeErrorResponse(w, http.StatusConflict, "Username is already taken")
 		default:
 			h.logger.Error("Failed to update user: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
