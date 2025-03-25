@@ -39,21 +39,28 @@ func NewUserService(repo repository.UserRepository, logger *utils.Logger) UserSe
 }
 
 func (s *userService) Create(ctx context.Context, user *model.CreateUserRequest) error {
+	if ctx.Err() != nil {
+		s.logger.Warning("Request timeout: operation took longer than 10 seconds")
+		return ErrRequestTimeout
+	}
+
 	if user.Username == "" || user.Email == "" {
 		s.logger.Warning("Invalid input for user creation: %v", ErrInvalidInput)
 		return ErrInvalidInput
 	}
 
+	// Check if user already exists
 	existingUser, err := s.repo.GetByEmailOrUsername(ctx, user.Email, user.Username)
-	if err == nil && existingUser != nil {
+	if err == context.DeadlineExceeded || err == context.Canceled {
+		s.logger.Warning("Database query timed out")
+		return ErrRequestTimeout
+	}
+	if err != nil {
+		return err
+	}
+	if existingUser != nil {
 		s.logger.Warning("User with email or username already exists")
 		return ErrUserAlreadyExists
-	}
-
-	// Check if the context is already expired
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		s.logger.Warning("Request timeout: %v", ErrRequestTimeout)
-		return ErrRequestTimeout
 	}
 
 	newUser := &entity.User{
@@ -64,12 +71,13 @@ func (s *userService) Create(ctx context.Context, user *model.CreateUserRequest)
 		UpdatedAt: time.Now(),
 	}
 
+	// Insert user into DB
 	err = s.repo.Create(ctx, newUser)
+	if err == context.DeadlineExceeded || err == context.Canceled {
+		s.logger.Warning("Database insert timed out")
+		return ErrRequestTimeout
+	}
 	if err != nil {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			s.logger.Warning("Request timeout: %v", ErrRequestTimeout)
-			return ErrRequestTimeout
-		}
 		return err
 	}
 
