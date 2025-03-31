@@ -22,7 +22,6 @@ func ToUsersResponse(users []*entity.User, meta *model.PaginatedMeta) *model.Res
 	}
 
 	return &model.Response{
-		Success: true,
 		Message: "Users retrieved successfully",
 		Data:    userResponses,
 		Meta:    meta,
