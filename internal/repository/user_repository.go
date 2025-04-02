@@ -82,6 +82,11 @@ func (r *userRepository) GetByEmailOrUsername(ctx context.Context, email string,
 }
 
 func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
+	if ctx.Err() != nil {
+		r.logger.Warning("Request timeout: operation took longer than 10 seconds")
+		return context.DeadlineExceeded
+	}
+
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		r.logger.Error("UserRepository.Create: failed to start transaction: %v", err)

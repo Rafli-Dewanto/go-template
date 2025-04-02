@@ -19,7 +19,7 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
-	ID       int64  `json:"id"`
-	Username string `json:"username" validate:"min=3,max=50"`
-	Email    string `json:"email" validate:"email"`
+	ID       int64   `json:"id"`
+	Username *string `json:"username,omitempty" validate:"omitempty,min=3,max=50"`
+	Email    *string `json:"email,omitempty" validate:"omitempty,email"`
 }

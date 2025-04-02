@@ -55,10 +55,8 @@ func (s *userService) Create(ctx context.Context, user *model.CreateUserRequest)
 		s.logger.Warning("Database query timed out")
 		return ErrRequestTimeout
 	}
-	if err != nil {
-		return err
-	}
-	if existingUser != nil {
+
+	if err == nil && existingUser != nil {
 		s.logger.Warning("User with email or username already exists")
 		return ErrUserAlreadyExists
 	}
@@ -116,7 +114,6 @@ func (s *userService) List(ctx context.Context, query *model.PaginationQuery) (*
 	}
 
 	return &model.Response{
-		Success: true,
 		Message: "Users retrieved successfully",
 		Data:    userResponses,
 		Meta: &model.PaginatedMeta{
@@ -149,19 +146,19 @@ func (s *userService) Update(ctx context.Context, user model.UpdateUserRequest) 
 	}
 
 	// Update username if provided
-	if user.Username != "" {
+	if user.Username != nil {
 		// Check if new username is already taken
-		_, err := s.repo.GetByUsername(ctx, user.Username)
+		_, err := s.repo.GetByUsername(ctx, *user.Username)
 		if err == nil {
 			s.logger.Warning("Username is already taken: %v", ErrUsernameAlreadyTaken)
 			return ErrUsernameAlreadyTaken
 		}
-		updatedUser.Username = user.Username
+		updatedUser.Username = *user.Username
 	}
 
 	// Update email if provided
-	if user.Email != "" {
-		updatedUser.Email = user.Email
+	if user.Email != nil {
+		updatedUser.Email = *user.Email
 	}
 
 	err = s.repo.Update(ctx, updatedUser)

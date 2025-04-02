@@ -1,8 +1,12 @@
 package model
 
 type Response struct {
-	Success bool          `json:"success"`
-	Message string        `json:"message"`
-	Data    interface{}   `json:"data,omitempty"`
+	Message string         `json:"message"`
+	Data    any            `json:"data,omitempty"`
 	Meta    *PaginatedMeta `json:"meta,omitempty"`
+}
+
+type FailedResponse struct {
+	Message string `json:"message"`
+	Errors  any    `json:"errors"`
 }

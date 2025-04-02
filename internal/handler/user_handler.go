@@ -35,10 +35,16 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req model.CreateUserRequest // Use value instead of pointer
+	var req model.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("Failed to decode request body: %v", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
+		h.logger.Warning("Validation failed for create user request")
+		writeValidationErrorResponse(w, validationErrors)
 		return
 	}
 
@@ -156,10 +162,16 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var req model.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("Failed to decode request body: %v", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeErrorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	req.ID = id
+
+	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
+		h.logger.Warning("Validation failed for update user request")
+		writeValidationErrorResponse(w, validationErrors)
+		return
+	}
 
 	err = h.userService.Update(ctx, req)
 	if err != nil {
