@@ -7,6 +7,8 @@ import (
 	"github.com/Rafli-Dewanto/go-template/internal/repository"
 	"github.com/Rafli-Dewanto/go-template/internal/service"
 	"github.com/Rafli-Dewanto/go-template/internal/utils"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -36,32 +38,22 @@ func NewRouter(db *sqlx.DB) *Router {
 }
 
 func (r *Router) SetupRoutes() http.Handler {
-	mux := http.NewServeMux()
+	router := chi.NewRouter()
+
+	// Middleware
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.RequestID)
+	router.Use(middleware.RealIP)
 
 	// User routes
-	mux.HandleFunc("/users", func(w http.ResponseWriter, req *http.Request) {
-		switch req.Method {
-		case http.MethodPost:
-			r.userHandler.Create(w, req)
-		case http.MethodGet:
-			r.userHandler.List(w, req)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
+	router.Route("/users", func(route chi.Router) {
+		route.Get("/", r.userHandler.List)
+		route.Post("/", r.userHandler.Create)
+		route.Get("/{id}", r.userHandler.GetByID)
+		route.Put("/{id}", r.userHandler.Update)
+		route.Patch("/{id}", r.userHandler.SoftDelete)
 	})
 
-	mux.HandleFunc("/users/", func(w http.ResponseWriter, req *http.Request) {
-		switch req.Method {
-		case http.MethodGet:
-			r.userHandler.GetByID(w, req)
-		case http.MethodPut:
-			r.userHandler.Update(w, req)
-		case http.MethodPatch:
-			r.userHandler.SoftDelete(w, req)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	return mux
+	return router
 }

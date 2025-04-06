@@ -12,6 +12,7 @@ import (
 	"github.com/Rafli-Dewanto/go-template/internal/model"
 	"github.com/Rafli-Dewanto/go-template/internal/service"
 	"github.com/Rafli-Dewanto/go-template/internal/utils"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -81,13 +82,13 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := strings.TrimPrefix(r.URL.Path, "/users/")
-	if idStr == "" || strings.Contains(idStr, "/") {
+	idStr := chi.URLParam(r, "id")
+	if idStr == "" {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
 
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := utils.StringToInt64(idStr)
 	if err != nil {
 		h.logger.Error("Failed to parse user ID: %v", err)
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
@@ -96,7 +97,7 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.GetByID(ctx, id)
 	if err != nil {
-		if err == service.ErrUserNotFound {
+		if errors.Is(err, service.ErrUserNotFound) {
 			h.logger.Warning("User not found with ID: %d", id)
 			writeErrorResponse(w, http.StatusNotFound, "User not found")
 			return
