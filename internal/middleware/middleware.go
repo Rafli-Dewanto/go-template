@@ -6,7 +6,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/Rafli-Dewanto/go-template/internal/utils"
+	"github.com/Rafli-Dewanto/golog"
 )
 
 type Middleware func(http.Handler) http.Handler
@@ -20,7 +20,7 @@ func Chain(h http.Handler, middlewares ...Middleware) http.Handler {
 }
 
 // Logger logs the incoming HTTP request and its duration
-func Logger(logger *utils.Logger) Middleware {
+func Logger(logger *golog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -34,7 +34,7 @@ func Logger(logger *utils.Logger) Middleware {
 }
 
 // Recover recovers from panics and logs the error
-func Recover(logger *utils.Logger) Middleware {
+func Recover(logger *golog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {

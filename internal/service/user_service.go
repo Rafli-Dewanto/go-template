@@ -10,7 +10,7 @@ import (
 	"github.com/Rafli-Dewanto/go-template/internal/model"
 	"github.com/Rafli-Dewanto/go-template/internal/model/converter"
 	"github.com/Rafli-Dewanto/go-template/internal/repository"
-	"github.com/Rafli-Dewanto/go-template/internal/utils"
+	"github.com/Rafli-Dewanto/golog"
 )
 
 var (
@@ -19,11 +19,13 @@ var (
 	ErrUserAlreadyExists    = errors.New("user already exists")
 	ErrRequestTimeout       = errors.New("request timeout")
 	ErrUsernameAlreadyTaken = errors.New("username already taken")
+	ErrInvalidCredentials   = errors.New("invalid credentials")
 )
 
 type UserService interface {
 	Create(ctx context.Context, user *model.CreateUserRequest) error
 	GetByID(ctx context.Context, id int64) (*model.UserResponse, error)
+	GetByEmail(ctx context.Context, email string) (*entity.User, error)
 	List(ctx context.Context, query *model.PaginationQuery) (*model.Response, error)
 	Update(ctx context.Context, user model.UpdateUserRequest) error
 	SoftDelete(ctx context.Context, id int64) error
@@ -31,10 +33,10 @@ type UserService interface {
 
 type userService struct {
 	repo   repository.UserRepository
-	logger *utils.Logger
+	logger *golog.Logger
 }
 
-func NewUserService(repo repository.UserRepository, logger *utils.Logger) UserService {
+func NewUserService(repo repository.UserRepository, logger *golog.Logger) UserService {
 	return &userService{repo: repo, logger: logger}
 }
 
@@ -80,6 +82,21 @@ func (s *userService) Create(ctx context.Context, user *model.CreateUserRequest)
 	}
 
 	return nil
+}
+
+func (s *userService) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
+	if email == "" {
+		s.logger.Warning("Invalid input for user retrieval: %v", ErrInvalidInput)
+		return nil, ErrInvalidInput
+	}
+
+	user, err := s.repo.GetByEmailOrUsername(ctx, email, "")
+	if err != nil {
+		s.logger.Warning("User not found: %v", ErrUserNotFound)
+		return nil, ErrInvalidCredentials
+	}
+
+	return user, nil
 }
 
 func (s *userService) GetByID(ctx context.Context, id int64) (*model.UserResponse, error) {

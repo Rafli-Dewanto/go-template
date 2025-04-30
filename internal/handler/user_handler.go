@@ -12,16 +12,17 @@ import (
 	"github.com/Rafli-Dewanto/go-template/internal/model"
 	"github.com/Rafli-Dewanto/go-template/internal/service"
 	"github.com/Rafli-Dewanto/go-template/internal/utils"
+	"github.com/Rafli-Dewanto/golog"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
 type UserHandler struct {
 	userService service.UserService
-	logger      *utils.Logger
+	logger      *golog.Logger
 }
 
-func NewUserHandler(userService service.UserService, logger *utils.Logger) *UserHandler {
+func NewUserHandler(userService service.UserService, logger *golog.Logger) *UserHandler {
 	return &UserHandler{userService: userService, logger: logger}
 }
 
@@ -39,7 +40,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req model.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("Failed to decode request body: %v", err)
-		writeErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -54,17 +55,17 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		// Properly check for context deadline exceeded error
 		if errors.Is(err, ctx.Err()) {
 			h.logger.Warning("Request timeout: operation took longer than 10 seconds")
-			writeErrorResponse(w, http.StatusRequestTimeout, "Request timeout")
+			WriteErrorResponse(w, http.StatusRequestTimeout, "Request timeout")
 			return
 		}
 
 		switch err {
 		case service.ErrInvalidInput:
 			h.logger.Warning("Invalid input for user creation: %v", err)
-			writeErrorResponse(w, http.StatusBadRequest, "Invalid input")
+			WriteErrorResponse(w, http.StatusBadRequest, "Invalid input")
 		case service.ErrUserAlreadyExists:
 			h.logger.Warning("User with email or username already exists")
-			writeErrorResponse(w, http.StatusConflict, "User already exists")
+			WriteErrorResponse(w, http.StatusConflict, "User already exists")
 		default:
 			h.logger.Error("Failed to create user: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -99,7 +100,7 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) {
 			h.logger.Warning("User not found with ID: %d", id)
-			writeErrorResponse(w, http.StatusNotFound, "User not found")
+			WriteErrorResponse(w, http.StatusNotFound, "User not found")
 			return
 		}
 		h.logger.Error("Failed to get user: %v", err)
@@ -114,7 +115,7 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithRequestID(r.Context(), uuid.New().String())
 	if r.Method != http.MethodGet {
 		h.logger.Warning("Method not allowed: %s", r.Method)
-		writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -132,7 +133,7 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	response, err := h.userService.List(ctx, query)
 	if err != nil {
 		h.logger.Error("Failed to list users: %v", err)
-		writeErrorResponse(w, http.StatusInternalServerError, "Internal server error")
+		WriteErrorResponse(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -163,7 +164,7 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var req model.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("Failed to decode request body: %v", err)
-		writeErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	req.ID = id
@@ -179,13 +180,13 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		switch err {
 		case service.ErrInvalidInput:
 			h.logger.Warning("Invalid input for user update: %v", err)
-			writeErrorResponse(w, http.StatusBadRequest, "Invalid input")
+			WriteErrorResponse(w, http.StatusBadRequest, "Invalid input")
 		case service.ErrUserNotFound:
 			h.logger.Warning("User not found for update with ID: %d", req.ID)
-			writeErrorResponse(w, http.StatusNotFound, "User not found")
+			WriteErrorResponse(w, http.StatusNotFound, "User not found")
 		case service.ErrUsernameAlreadyTaken:
 			h.logger.Warning("Username is already taken for update with ID: %d", req.ID)
-			writeErrorResponse(w, http.StatusConflict, "Username is already taken")
+			WriteErrorResponse(w, http.StatusConflict, "Username is already taken")
 		default:
 			h.logger.Error("Failed to update user: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

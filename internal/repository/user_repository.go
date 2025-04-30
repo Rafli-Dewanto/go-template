@@ -7,7 +7,7 @@ import (
 
 	"github.com/Rafli-Dewanto/go-template/internal/entity"
 	"github.com/Rafli-Dewanto/go-template/internal/model"
-	"github.com/Rafli-Dewanto/go-template/internal/utils"
+	"github.com/Rafli-Dewanto/golog"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -24,10 +24,10 @@ type UserRepository interface {
 
 type userRepository struct {
 	db     *sqlx.DB
-	logger *utils.Logger
+	logger *golog.Logger
 }
 
-func NewUserRepository(db *sqlx.DB, logger *utils.Logger) UserRepository {
+func NewUserRepository(db *sqlx.DB, logger *golog.Logger) UserRepository {
 	return &userRepository{db: db, logger: logger}
 }
 
@@ -206,7 +206,7 @@ func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
 
 	err = tx.QueryRowx(query, user.Username, user.Email, user.ID).Scan(&user.UpdatedAt)
 	if err != nil {
-		tx.Rollback() // Explicitly rollback on error
+		tx.Rollback()                                                  // Explicitly rollback on error
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" { // Unique violation
 			r.logger.Warning("UserRepository.Update: email already exists: %v", user.Email)
 			return errors.New("email already in use")
@@ -222,7 +222,6 @@ func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
 
 	return nil
 }
-
 
 func (r *userRepository) SoftDelete(ctx context.Context, id int64) error {
 	tx, err := r.db.BeginTxx(ctx, nil)

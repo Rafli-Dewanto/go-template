@@ -32,7 +32,7 @@ func writeResponse(w http.ResponseWriter, statusCode int, data interface{}, mess
 	json.NewEncoder(w).Encode(resp)
 }
 
-func writeErrorResponse(w http.ResponseWriter, statusCode int, message string) {
+func WriteErrorResponse(w http.ResponseWriter, statusCode int, message string) {
 	writeResponse(w, statusCode, nil, message, nil)
 }
 

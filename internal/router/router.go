@@ -6,7 +6,7 @@ import (
 	"github.com/Rafli-Dewanto/go-template/internal/handler"
 	"github.com/Rafli-Dewanto/go-template/internal/repository"
 	"github.com/Rafli-Dewanto/go-template/internal/service"
-	"github.com/Rafli-Dewanto/go-template/internal/utils"
+	"github.com/Rafli-Dewanto/golog"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
@@ -18,7 +18,7 @@ type Router struct {
 
 func NewRouter(db *sqlx.DB) *Router {
 	// logger
-	logger, err := utils.NewLogger("files/log/app.log")
+	logger, err := golog.NewLogger("files/log/app.log")
 	if err != nil {
 		panic(err)
 	}
