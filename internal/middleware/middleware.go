@@ -6,7 +6,8 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/Rafli-Dewanto/golog"
+	"github.com/Rafli-Dewanto/go-template/internal/context"
+	"github.com/Rafli-Dewanto/go-template/internal/utils"
 )
 
 type Middleware func(http.Handler) http.Handler
@@ -20,7 +21,7 @@ func Chain(h http.Handler, middlewares ...Middleware) http.Handler {
 }
 
 // Logger logs the incoming HTTP request and its duration
-func Logger(logger *golog.Logger) Middleware {
+func Logger(logger *utils.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -34,7 +35,7 @@ func Logger(logger *golog.Logger) Middleware {
 }
 
 // Recover recovers from panics and logs the error
-func Recover(logger *golog.Logger) Middleware {
+func Recover(logger *utils.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
@@ -73,6 +74,29 @@ func RequestID() Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestID := fmt.Sprintf("%d", time.Now().UnixNano())
 			w.Header().Set("X-Request-ID", requestID)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// APIID adds a unique API ID to each request for tracking
+func APIID() Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Check if API ID already exists in request header
+			apiID := r.Header.Get("X-API-ID")
+			if apiID == "" {
+				// Generate new API ID using crypto utility
+				apiID = utils.GenerateAPIID()
+			}
+
+			// Add API ID to response header
+			w.Header().Set("X-API-ID", apiID)
+
+			// Add API ID to request context
+			ctx := context.WithAPIID(r.Context(), apiID)
+			r = r.WithContext(ctx)
+
 			next.ServeHTTP(w, r)
 		})
 	}

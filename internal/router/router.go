@@ -6,9 +6,10 @@ import (
 	"github.com/Rafli-Dewanto/go-template/internal/handler"
 	"github.com/Rafli-Dewanto/go-template/internal/repository"
 	"github.com/Rafli-Dewanto/go-template/internal/service"
-	"github.com/Rafli-Dewanto/golog"
+	"github.com/Rafli-Dewanto/go-template/internal/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	customMiddleware "github.com/Rafli-Dewanto/go-template/internal/middleware"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -18,7 +19,7 @@ type Router struct {
 
 func NewRouter(db *sqlx.DB) *Router {
 	// logger
-	logger, err := golog.NewLogger("files/log/app.log")
+	logger, err := utils.NewLogger("files/log/app.log")
 	if err != nil {
 		panic(err)
 	}
@@ -45,6 +46,8 @@ func (r *Router) SetupRoutes() http.Handler {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
+	router.Use(customMiddleware.APIID())
+	router.Use(customMiddleware.CORS())
 
 	// User routes
 	router.Route("/users", func(route chi.Router) {

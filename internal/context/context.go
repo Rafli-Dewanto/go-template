@@ -12,6 +12,8 @@ const (
 	RequestIDKey key = iota
 	// UserIDKey is the key for user ID in context
 	UserIDKey
+	// APIIDKey is the key for API ID in context
+	APIIDKey
 )
 
 // GetRequestID retrieves the request ID from context
@@ -48,4 +50,20 @@ func WithUserID(ctx context.Context, userID int64) context.Context {
 
 func WithTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, timeout)
+}
+
+// GetAPIID retrieves the API ID from context
+func GetAPIID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if apiID, ok := ctx.Value(APIIDKey).(string); ok {
+		return apiID
+	}
+	return ""
+}
+
+// WithAPIID adds API ID to context
+func WithAPIID(ctx context.Context, apiID string) context.Context {
+	return context.WithValue(ctx, APIIDKey, apiID)
 }

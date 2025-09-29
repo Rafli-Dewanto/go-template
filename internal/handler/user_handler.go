@@ -12,40 +12,40 @@ import (
 	"github.com/Rafli-Dewanto/go-template/internal/model"
 	"github.com/Rafli-Dewanto/go-template/internal/service"
 	"github.com/Rafli-Dewanto/go-template/internal/utils"
-	"github.com/Rafli-Dewanto/golog"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
 type UserHandler struct {
 	userService service.UserService
-	logger      *golog.Logger
+	logger      *utils.Logger
 }
 
-func NewUserHandler(userService service.UserService, logger *golog.Logger) *UserHandler {
+func NewUserHandler(userService service.UserService, logger *utils.Logger) *UserHandler {
 	return &UserHandler{userService: userService, logger: logger}
 }
 
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithRequestID(r.Context(), uuid.New().String())
+	apiID := context.GetAPIID(ctx)
 	cancelCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	if r.Method != http.MethodPost {
-		h.logger.Warning("Method not allowed: %s", r.Method)
+		h.logger.WarningWithAPIID(apiID, "Method not allowed: %s", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req model.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("Failed to decode request body: %v", err)
+		h.logger.ErrorWithAPIID(apiID, "Failed to decode request body: %v", err)
 		WriteErrorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
-		h.logger.Warning("Validation failed for create user request")
+		h.logger.WarningWithAPIID(apiID, "Validation failed for create user request")
 		writeValidationErrorResponse(w, validationErrors)
 		return
 	}
@@ -54,20 +54,20 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Properly check for context deadline exceeded error
 		if errors.Is(err, ctx.Err()) {
-			h.logger.Warning("Request timeout: operation took longer than 10 seconds")
+			h.logger.WarningWithAPIID(apiID, "Request timeout: operation took longer than 10 seconds")
 			WriteErrorResponse(w, http.StatusRequestTimeout, "Request timeout")
 			return
 		}
 
 		switch err {
 		case service.ErrInvalidInput:
-			h.logger.Warning("Invalid input for user creation: %v", err)
+			h.logger.WarningWithAPIID(apiID, "Invalid input for user creation: %v", err)
 			WriteErrorResponse(w, http.StatusBadRequest, "Invalid input")
 		case service.ErrUserAlreadyExists:
-			h.logger.Warning("User with email or username already exists")
+			h.logger.WarningWithAPIID(apiID, "User with email or username already exists")
 			WriteErrorResponse(w, http.StatusConflict, "User already exists")
 		default:
-			h.logger.Error("Failed to create user: %v", err)
+			h.logger.ErrorWithAPIID(apiID, "Failed to create user: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		return
@@ -77,8 +77,9 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithRequestID(r.Context(), uuid.New().String())
+	apiID := context.GetAPIID(ctx)
 	if r.Method != http.MethodGet {
-		h.logger.Warning("Method not allowed: %s", r.Method)
+		h.logger.WarningWithAPIID(apiID, "Method not allowed: %s", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -91,7 +92,7 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	id, err := utils.StringToInt64(idStr)
 	if err != nil {
-		h.logger.Error("Failed to parse user ID: %v", err)
+		h.logger.ErrorWithAPIID(apiID, "Failed to parse user ID: %v", err)
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
@@ -99,11 +100,11 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	user, err := h.userService.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) {
-			h.logger.Warning("User not found with ID: %d", id)
+			h.logger.WarningWithAPIID(apiID, "User not found with ID: %d", id)
 			WriteErrorResponse(w, http.StatusNotFound, "User not found")
 			return
 		}
-		h.logger.Error("Failed to get user: %v", err)
+		h.logger.ErrorWithAPIID(apiID, "Failed to get user: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -113,8 +114,9 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithRequestID(r.Context(), uuid.New().String())
+	apiID := context.GetAPIID(ctx)
 	if r.Method != http.MethodGet {
-		h.logger.Warning("Method not allowed: %s", r.Method)
+		h.logger.WarningWithAPIID(apiID, "Method not allowed: %s", r.Method)
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
@@ -122,7 +124,7 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	h.logger.Info("List users with limit: %d, offset: %d", limit, offset)
+	h.logger.InfoWithAPIID(apiID, "List users with limit: %d, offset: %d", limit, offset)
 
 	query := &model.PaginationQuery{
 		Page:   utils.Default(page, 1),
@@ -132,7 +134,7 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	response, err := h.userService.List(ctx, query)
 	if err != nil {
-		h.logger.Error("Failed to list users: %v", err)
+		h.logger.ErrorWithAPIID(apiID, "Failed to list users: %v", err)
 		WriteErrorResponse(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
@@ -142,8 +144,9 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithRequestID(r.Context(), uuid.New().String())
+	apiID := context.GetAPIID(ctx)
 	if r.Method != http.MethodPut {
-		h.logger.Warning("Method not allowed: %s", r.Method)
+		h.logger.WarningWithAPIID(apiID, "Method not allowed: %s", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -156,21 +159,21 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		h.logger.Error("Failed to parse user ID: %v", err)
+		h.logger.ErrorWithAPIID(apiID, "Failed to parse user ID: %v", err)
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
 
 	var req model.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("Failed to decode request body: %v", err)
+		h.logger.ErrorWithAPIID(apiID, "Failed to decode request body: %v", err)
 		WriteErrorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	req.ID = id
 
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
-		h.logger.Warning("Validation failed for update user request")
+		h.logger.WarningWithAPIID(apiID, "Validation failed for update user request")
 		writeValidationErrorResponse(w, validationErrors)
 		return
 	}
@@ -179,16 +182,16 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch err {
 		case service.ErrInvalidInput:
-			h.logger.Warning("Invalid input for user update: %v", err)
+			h.logger.WarningWithAPIID(apiID, "Invalid input for user update: %v", err)
 			WriteErrorResponse(w, http.StatusBadRequest, "Invalid input")
 		case service.ErrUserNotFound:
-			h.logger.Warning("User not found for update with ID: %d", req.ID)
+			h.logger.WarningWithAPIID(apiID, "User not found for update with ID: %d", req.ID)
 			WriteErrorResponse(w, http.StatusNotFound, "User not found")
 		case service.ErrUsernameAlreadyTaken:
-			h.logger.Warning("Username is already taken for update with ID: %d", req.ID)
+			h.logger.WarningWithAPIID(apiID, "Username is already taken for update with ID: %d", req.ID)
 			WriteErrorResponse(w, http.StatusConflict, "Username is already taken")
 		default:
-			h.logger.Error("Failed to update user: %v", err)
+			h.logger.ErrorWithAPIID(apiID, "Failed to update user: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
@@ -198,9 +201,10 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithRequestID(r.Context(), uuid.New().String())
-	h.logger.Info("Handling delete user request")
+	apiID := context.GetAPIID(ctx)
+	h.logger.InfoWithAPIID(apiID, "Handling delete user request")
 	if r.Method != http.MethodPatch {
-		h.logger.Warning("Method not allowed: %s", r.Method)
+		h.logger.WarningWithAPIID(apiID, "Method not allowed: %s", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -208,7 +212,7 @@ func (h *UserHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/users/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		h.logger.Error("Failed to parse user ID: %v", err)
+		h.logger.ErrorWithAPIID(apiID, "Failed to parse user ID: %v", err)
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
@@ -216,10 +220,10 @@ func (h *UserHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
 	if err := h.userService.SoftDelete(ctx, id); err != nil {
 		switch err {
 		case service.ErrUserNotFound:
-			h.logger.Warning("User not found for deletion with ID: %d", id)
+			h.logger.WarningWithAPIID(apiID, "User not found for deletion with ID: %d", id)
 			http.Error(w, err.Error(), http.StatusNotFound)
 		default:
-			h.logger.Error("Failed to delete user: %v", err)
+			h.logger.ErrorWithAPIID(apiID, "Failed to delete user: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		return

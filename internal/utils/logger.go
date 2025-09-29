@@ -60,6 +60,30 @@ func (l *Logger) Error(format string, v ...interface{}) {
 	l.error.Printf("%s %s", time.Now().Format("2006-01-02 15:04:05"), message)
 }
 
+// DebugWithAPIID logs a debug message with API ID
+func (l *Logger) DebugWithAPIID(apiID string, format string, v ...interface{}) {
+	message := fmt.Sprintf(format, v...)
+	l.debug.Printf("%s [API-ID:%s] %s", time.Now().Format("2006-01-02 15:04:05"), apiID, message)
+}
+
+// InfoWithAPIID logs an info message with API ID
+func (l *Logger) InfoWithAPIID(apiID string, format string, v ...interface{}) {
+	message := fmt.Sprintf(format, v...)
+	l.info.Printf("%s [API-ID:%s] %s", time.Now().Format("2006-01-02 15:04:05"), apiID, message)
+}
+
+// WarningWithAPIID logs a warning message with API ID
+func (l *Logger) WarningWithAPIID(apiID string, format string, v ...interface{}) {
+	message := fmt.Sprintf(format, v...)
+	l.warning.Printf("%s [API-ID:%s] %s", time.Now().Format("2006-01-02 15:04:05"), apiID, message)
+}
+
+// ErrorWithAPIID logs an error message with API ID
+func (l *Logger) ErrorWithAPIID(apiID string, format string, v ...interface{}) {
+	message := fmt.Sprintf(format, v...)
+	l.error.Printf("%s [API-ID:%s] %s", time.Now().Format("2006-01-02 15:04:05"), apiID, message)
+}
+
 // Close closes the log file
 func (l *Logger) Close() {
 	if l.file != nil {

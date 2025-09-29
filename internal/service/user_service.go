@@ -10,7 +10,7 @@ import (
 	"github.com/Rafli-Dewanto/go-template/internal/model"
 	"github.com/Rafli-Dewanto/go-template/internal/model/converter"
 	"github.com/Rafli-Dewanto/go-template/internal/repository"
-	"github.com/Rafli-Dewanto/golog"
+	"github.com/Rafli-Dewanto/go-template/internal/utils"
 )
 
 var (
@@ -33,10 +33,10 @@ type UserService interface {
 
 type userService struct {
 	repo   repository.UserRepository
-	logger *golog.Logger
+	logger *utils.Logger
 }
 
-func NewUserService(repo repository.UserRepository, logger *golog.Logger) UserService {
+func NewUserService(repo repository.UserRepository, logger *utils.Logger) UserService {
 	return &userService{repo: repo, logger: logger}
 }
 

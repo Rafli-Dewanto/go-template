@@ -7,7 +7,7 @@ import (
 
 	"github.com/Rafli-Dewanto/go-template/internal/entity"
 	"github.com/Rafli-Dewanto/go-template/internal/model"
-	"github.com/Rafli-Dewanto/golog"
+	"github.com/Rafli-Dewanto/go-template/internal/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -24,10 +24,10 @@ type UserRepository interface {
 
 type userRepository struct {
 	db     *sqlx.DB
-	logger *golog.Logger
+	logger *utils.Logger
 }
 
-func NewUserRepository(db *sqlx.DB, logger *golog.Logger) UserRepository {
+func NewUserRepository(db *sqlx.DB, logger *utils.Logger) UserRepository {
 	return &userRepository{db: db, logger: logger}
 }
 
